@@ -95,75 +95,60 @@ static void servo_all(uint16_t us)
 }
 
 
-// void chapter_main(void)
-// {
-//     dwt_init();
-//     ps2_init();
-//     motor_init();
-//     servo_start();
-
-//     HAL_Delay(500);
-//     /*等电稳定*/
-
-//     uint16_t servo_us    = SERVO_MIN;
-//     int8_t   sweep_dir   = +1;
-//     uint32_t last_active = HAL_GetTick();
-//     uint32_t last = HAL_GetTick();
-
-//     while (1)
-//     {
-//         ps2_poll();
-
-//         if (ps2_ok)
-//         {
-//             /* 左摇杆 → 平动（前后/左右）；右摇杆左右 → 自转 */
-//             int16_t vx = stick(ps2_ly);
-//             int16_t vy = stick(ps2_lx);
-//             int16_t w  = stick(ps2_rx);
-
-//             /* 按住 START：底盘停住，专心看舵机（免得一边扫舵机一边车乱跑） */
-//             if (ps2_btn1 & PS2_BTN_START)
-//             {
-//                 vx = 0; vy = 0; w = 0;
-
-//                 last_active = HAL_GetTick();
-//                 servo_us += sweep_dir * SWEEP_STEP;
-//                 if (servo_us >= SERVO_MAX) { servo_us = SERVO_MAX; sweep_dir = -1; }
-//                 if (servo_us <= SERVO_MIN) { servo_us = SERVO_MIN; sweep_dir = +1; }
-//                 servo_all(servo_us);
-//             }
-
-//             mecanum_drive(vx, vy, w);
-//         }
-//         else
-//         {
-//             mecanum_drive(0, 0, 0);      /* 掉线/跑远 → 全车停车（高阻滑行） */
-//         }
-
-//         /* 5 秒没碰过 START，舵机自动回 0 位 */
-//         if (HAL_GetTick() - last_active > IDLE_MS)
-//         {
-//             servo_us  = SERVO_MIN;
-//             sweep_dir = +1;
-//             servo_all(SERVO_MIN);
-//         }
-
-//         while( HAL_GetTick() - last < 20 ) {}  /* 保证 50Hz 主循环 */
-//         last = HAL_GetTick();
-//     }
-// }
-
-
 void chapter_main(void)
 {
     dwt_init();
+    ps2_init();
     motor_init();
+    servo_start();
+
+    HAL_Delay(500);
+    /*等电稳定*/
+
+    uint16_t servo_us    = SERVO_MIN;
+    int8_t   sweep_dir   = +1;
+    uint32_t last_active = HAL_GetTick();
+    uint32_t last = HAL_GetTick();
 
     while (1)
     {
-        motor_set(1,  1000);  HAL_Delay(1500);   /* 正转 1.5 秒 */
-        motor_set(1,    0);  HAL_Delay(500);    /* 高阻滑行 0.5 秒 */
-        motor_set(1, -1000);  HAL_Delay(1500);   /* 反转 1.5 秒 */
-        motor_set(1,    0);  HAL_Delay(1500);   /* 停 1.5 秒 */
+        ps2_poll();
+
+        if (ps2_ok)
+        {
+            /* 左摇杆 → 平动（前后/左右）；右摇杆左右 → 自转 */
+            int16_t vx = stick(ps2_ly);
+            int16_t vy = stick(ps2_lx);
+            int16_t w  = stick(ps2_rx);
+
+            /* 按住 START：底盘停住，专心看舵机（免得一边扫舵机一边车乱跑） */
+            if (ps2_btn1 & PS2_BTN_START)
+            {
+                vx = 0; vy = 0; w = 0;
+
+                last_active = HAL_GetTick();
+                servo_us += sweep_dir * SWEEP_STEP;
+                if (servo_us >= SERVO_MAX) { servo_us = SERVO_MAX; sweep_dir = -1; }
+                if (servo_us <= SERVO_MIN) { servo_us = SERVO_MIN; sweep_dir = +1; }
+                servo_all(servo_us);
+            }
+
+            mecanum_drive(vx, vy, w);
+        }
+        else
+        {
+            mecanum_drive(0, 0, 0);      /* 掉线/跑远 → 全车停车（高阻滑行） */
+        }
+
+        /* 5 秒没碰过 START，舵机自动回 0 位 */
+        if (HAL_GetTick() - last_active > IDLE_MS)
+        {
+            servo_us  = SERVO_MIN;
+            sweep_dir = +1;
+            servo_all(SERVO_MIN);
+        }
+
+        while( HAL_GetTick() - last < 20 ) {}  /* 保证 50Hz 主循环 */
+        last = HAL_GetTick();
     }
 }
