@@ -28,7 +28,7 @@ typedef struct
 static const MotorMap_t motor_map[5] =
 {
     { 0,0,0,0 },   /* 占位不用，最喜欢下标从1开始 */
-    { &htim2, TIM_CHANNEL_2,  TIM_CHANNEL_3,  0 },   /* 1 左前 FL: PA0 / PA1 ，修改过，记得改回来*/  
+    { &htim2, TIM_CHANNEL_1,  TIM_CHANNEL_2,  0 },   /* 1 左前 FL: PA0 / PA1 ，修改过，记得改回来*/  
     { &htim2, TIM_CHANNEL_3,  TIM_CHANNEL_4,  0 },   /* 2 右前 FR: PA2 / PA3 */
     { &htim3, TIM_CHANNEL_3,  TIM_CHANNEL_4,  0 },   /* 3 左后 RL: PB0 / PB1 */
     { &htim1, TIM_CHANNEL_1,  TIM_CHANNEL_4,  0 },   /* 4 右后 RR: PA8 / PA11 */
