@@ -33,13 +33,15 @@ enable_language(C ASM)
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
+    Core/Inc/motor.h
+    Core/Inc/chassis.h
     Core/Inc/ps2.h
-    Core/Inc/servo.h
-    Core/Src/servo.c
+    Core/Inc/app.h
+    Core/Src/motor.c
+    Core/Src/chassis.c
     Core/Src/ps2.c
     Core/Src/dwt_delay.c
-    Core/Src/motor.c
-    Core/Src/mailun.c)
+    Core/Src/app.c)
 
 # Add STM32CubeMX generated sources
 add_subdirectory(cmake/stm32cubemx)
