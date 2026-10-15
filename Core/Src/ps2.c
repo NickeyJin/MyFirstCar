@@ -1,16 +1,12 @@
 /*
- * ps2.c —— PS2 无线手柄驱动（软件模拟 PS2 时序）
- *
- * 一帧 = 9 个字节，主机先发后收（全双工）：
- *     b[0] 0x01 起始   b[1] 手柄 ID   b[2] 0x5A
- *     b[3] 按键组1（按下 = 0，读回来取反）   b[4] 按键组2
- *     b[5] 右摇杆左右  b[6] 右摇杆上下  b[7] 左摇杆左右  b[8] 左摇杆上下
- *     摇杆 0x00 ~ 0xFF，中位 0x80，0x00 在左/上，0xFF 在右/下
- *
- * 时序（和厂商参考代码 ver. XTARK 一致，位序是低位在前 -> 这里用的是 0x01 左移）：
- *     每来一位：先把 CMD 摆好 -> CLK 拉低 -> 等 16µs -> 采样 DATA -> CLK 拉高 -> 等 16µs
- *     整帧期间 ATT/CS 保持低电平。
- */
+ps2.c —— PS2 无线手柄驱动（软件模拟 PS2 时序）
+    ps2_init(): 初始化 GPIO + 内部上拉 + 状态灯
+    ps2_read_frame(): 拉低 ATT，整帧 9 字节收发完再放开
+    ps2_xfer(): 收发 1 个字节，返回同时读回来的 1 个字节
+    ps2_axes_to_center(): 摇杆归中，按键归位
+    ps2_task(): 每 20ms 拉低 ATT，收发一帧数据
+    ps2_ok: 这一帧数据能不能用
+*/
 #include "main.h"
 #include "ps2.h"
 #include "dwt_delay.h"
@@ -90,19 +86,10 @@ static uint8_t ps2_xfer(uint8_t cmd)
 
     for (uint8_t ref = 0x01; ref != 0; ref <<= 1)
     {
-        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CMD,
-                          (cmd & ref) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-
-        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CLK, GPIO_PIN_RESET);
-        delay_us(PS2_BIT_US);
-
-        if (HAL_GPIO_ReadPin(PS2_PORT_DATA, PS2_PIN_DATA) == GPIO_PIN_SET)
-        {
-            res |= ref;     /* 位序低位在前，和发送端保持一致 */
-        }
-
-        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CLK, GPIO_PIN_SET);
-        delay_us(PS2_BIT_US);
+        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CMD,(cmd & ref) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CLK, GPIO_PIN_RESET);    delay_us(PS2_BIT_US);
+        if(HAL_GPIO_ReadPin(PS2_PORT_DATA, PS2_PIN_DATA) == GPIO_PIN_SET) res |= ref;     /* 位序低位在前，和发送端保持一致 */
+        HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_CLK, GPIO_PIN_SET);      delay_us(PS2_BIT_US);
     }
 
     return res;
@@ -112,20 +99,12 @@ static uint8_t ps2_xfer(uint8_t cmd)
 static void ps2_read_frame(void)
 {
     HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_ATT, GPIO_PIN_RESET);
-
-    for (uint8_t i = 0; i < 9; i++)
-    {
-        ps2_buf[i] = ps2_xfer(ps2_cmd[i]);
-    }
-
+    for (uint8_t i = 0; i < 9; i++) ps2_buf[i] = ps2_xfer(ps2_cmd[i]);
     HAL_GPIO_WritePin(PS2_PORT_DATA, PS2_PIN_ATT, GPIO_PIN_SET);
 }
 
 /* 手柄 ID：0x41 数字模式，0x73 / 0x53 模拟模式，0x79 部分副厂手柄 */
-static uint8_t ps2_id_valid(uint8_t id)
-{
-    return (id == 0x41) || (id == 0x73) || (id == 0x53) || (id == 0x79);
-}
+static uint8_t ps2_id_valid(uint8_t id) { return (id == 0x41) || (id == 0x73) || (id == 0x53) || (id == 0x79); }
 
 void ps2_poll(void)
 {
@@ -135,7 +114,7 @@ void ps2_poll(void)
     {
         ps2_read_frame();
         id = ps2_buf[1];
-        if (ps2_id_valid(id)) break;
+        if ( ps2_id_valid(id)) break;
     }
 
     if (!ps2_id_valid(id))

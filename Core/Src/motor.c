@@ -1,9 +1,12 @@
 /*
- * motor.c —— 单轮电机硬件层，只干一件事：把一个 -1000~+1000 的速度
- *            翻译成某个定时器两个通道上的 PWM 占空比。
- *
- * 这一层不认识"底盘"、不认识"手柄"，只认识轮号和定时器通道。
- */
+motor.c —— 把一个 -1000~+1000 的速度变成某个定时器两个通道上的 PWM 占空比，从而让电机开动
+    speed_to_ccr(): 把速度映射到 CCR
+    motor_write(): 写入 CCR，正负速度对应 IN1/IN2 两路 PWM
+    motor_set(): 做一些自检，防止速度越界 + 调整轮子前后方向，然后运行 motor_write()
+    motor_stop_all(): 让四个轮子都滑行停车
+    motor_brake_all(): 让四个轮子都刹车停车（IN1=IN2=1）
+    motor_init(): 上电先让轮子老实待着，顺便把定时器 PWM 开起来
+*/
 #include "main.h"
 #include "motor.h"
 
@@ -26,24 +29,7 @@ static const MotorMap_t motor_map[5] =
     { &htim2, TIM_CHANNEL_1,   TIM_CHANNEL_2,   0 },   /* 1 左前 FL: PA0 / PA1  */
     { &htim2, TIM_CHANNEL_3,   TIM_CHANNEL_4,   0 },   /* 2 右前 FR: PA2 / PA3  */
     { &htim3, TIM_CHANNEL_3,   TIM_CHANNEL_4,   0 },   /* 3 左后 RL: PB0 / PB1  */
-    { &htim1, TIM_CHANNEL_1,   TIM_CHANNEL_4,   1 },   /* 4 右后 RR: PA8 / PA11
-                                                        *
-                                                        * IN1 = PA8  → TIM1_CH1
-                                                        * IN2 = PA11 → TIM1_CH4
-                                                        *
-                                                        * 2026-10-11 "右后轮专项排查"结果：PA11 无论
-                                                        * 当普通 GPIO 直推、还是走 TIM1_CH4 的 PWM，
-                                                        * 这个轮子都不动；而 PA8 两条路都正常。
-                                                        * 曾把 IN2 临时挪到 PA9/TIM1_CH2 验证，但
-                                                        * **PCB 已把 PA11 → DRV8833 IN2 画死，改不了线**，
-                                                        * 所以这里保持 PA11。
-                                                        *
-                                                        * 注意：那个测试区分不了"PA11 没输出"和"轮子只在
-                                                        * 前进方向卡死"，两者现象一模一样。等换了新板/新轮子
-                                                        * 再判：新板好 = 板子问题；新板还这样 = 轮子或电机线。
-                                                        *
-                                                        * invert=1：实测这个轮子的电机线是反的
-                                                        * （四轮同向测试时它往反方向转），软件里翻正。 */
+    { &htim1, TIM_CHANNEL_1,   TIM_CHANNEL_4,   1 },   /* 4 右后 RR: PA8 / PA11 */
 };
 
 /* 速度 → CCR。满量程 speed 对应 CCR = ARR+1（整周期全高，真 100%） */

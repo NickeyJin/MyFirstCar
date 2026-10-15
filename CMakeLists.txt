@@ -33,15 +33,18 @@ enable_language(C ASM)
 
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME}
+    Core/Inc/board.h
     Core/Inc/motor.h
     Core/Inc/chassis.h
     Core/Inc/ps2.h
     Core/Inc/app.h
+    Core/Inc/diag.h
     Core/Src/motor.c
     Core/Src/chassis.c
     Core/Src/ps2.c
     Core/Src/dwt_delay.c
     Core/Src/app.c
+    Core/Src/diag.c
   # ---- 机械臂舵机 + 示教录制回放（自带 TIM4 初始化，不依赖 CubeMX）----
   Core/Inc/servo.h
   Core/Inc/teach_only.h
