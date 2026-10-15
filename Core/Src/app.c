@@ -16,6 +16,7 @@
 #include "chassis.h"
 #include "motor.h"
 #include "ps2.h"
+#include "teach_only.h"   /* 机械臂示教录制/回放 */
 #include "dwt_delay.h"
 
 /* 排查模式要临时改定时器，这里自己引一下（motor.c 里也是这么用的） */
@@ -454,6 +455,7 @@ void app_init(void)
 {
     dwt_init();         /* delay_us 要用 DWT，PS2 时序靠它 */
     ps2_init();
+    teach_only_init();  /* 机械臂：舵机 + 从 Flash 读回录制（自带 TIM4 初始化）*/
     chassis_init();     /* 顺带把 8 路 PWM 起起来 */
 
     ps2_ok = 0;
@@ -480,6 +482,11 @@ void app_task(void)
     app_last_tick = HAL_GetTick();
 
     ps2_poll();
+
+
+    /* ★ 示教模块必须在下面那句 if (!ps2_ok) return; 之前 ——
+       否则手柄一掉线，机械臂的录制/回放也跟着停摆。 */
+    teach_only_poll();
 
     if (!ps2_ok)
     {
